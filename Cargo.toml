@@ -1,0 +1,11 @@
+[package]
+name = "trivial-argument-parser"
+version = "0.2.0"
+authors = ["Marcin Mazgaj <mmazgaj@protonmail.com>"]
+edition = "2018"
+license = "MIT"
+description = "Small library for parsing CLI arguments."
+exclude = ["src/builder.rs",]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
