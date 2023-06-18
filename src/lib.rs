@@ -1,24 +1,26 @@
-//pub mod builder;
-
+pub mod argument;
+pub mod builder;
 use std::env;
 
 /**
 Enum allowing to choose the type of argument.
 */
-#[derive(Debug)]
-pub enum ArgType
-{
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ArgType {
     Flag,
     Value,
     ValueList,
+}
+
+pub trait ArgumentValueValidator {
+    fn validate(&self, value: &str) -> bool;
 }
 
 /**
 ArgResult enum is similar to ArgType enum but contains data generated through parsing
 */
 #[derive(Debug, PartialEq)]
-pub enum ArgResult
-{
+pub enum ArgResult {
     Flag,
     Value(String),
     ValueList(Vec<String>),
@@ -34,46 +36,50 @@ pub enum ArgResult
 /// ```
 
 #[derive(Debug)]
-pub struct Argument
-{
+pub struct Argument {
     short: Option<char>,
     long: Option<String>,
     arg_type: ArgType,
     pub arg_result: Option<ArgResult>,
 }
 
-impl Argument
-{
+impl Argument {
     /**
     Create new Argument. You need to specify at least one name (short or long) or you can specify both. Parameter arg_type changes how the parsing will treat the argument.
     */
-    pub fn new(short: Option<char>, long: Option<& str>, arg_type: ArgType) -> Result<Argument, String>
-    {
+    pub fn new(
+        short: Option<char>,
+        long: Option<&str>,
+        arg_type: ArgType,
+    ) -> Result<Argument, String> {
         // Check if at least 1 name is specified
-        match & short
-        {
-            None =>
-            {
-                match & long
-                {
-                    None =>
-                    {
-                        return Err(String::from("At least one name of argument must be specified (short or long or both)"))
-                    }
-                    _ => ()
-                }
-            }
-            _ => (),
-        };
+        if let (Option::None, Option::None) = (short, long) {
+            return Err(String::from(
+                "At least one name of argument must be specified (short or long or both)",
+            ));
+        }
 
         // Check if long name is defined, if so use it
-        let long_owned: Option<String> = match long
-        {
-            Some(text) => Some(String::from(text)),
-            None => None,
+        let long_owned: Option<String> = if let Some(text) = long {
+            Option::Some(String::from(text))
+        } else {
+            None
         };
 
-        Ok(Argument{short, long: long_owned, arg_type, arg_result: None})
+        Ok(Argument {
+            short,
+            long: long_owned,
+            arg_type,
+            arg_result: None,
+        })
+    }
+
+    pub fn new_short(name: char, arg_type: ArgType) -> Argument {
+        Argument::new(Option::Some(name), Option::None, arg_type).unwrap()
+    }
+
+    pub fn new_long(name: &str, arg_type: ArgType) -> Argument {
+        Argument::new(Option::None, Option::Some(name), arg_type).unwrap()
     }
 
     ///
@@ -89,29 +95,19 @@ impl Argument
     /// println!("Value: {}", value);
     ///```
 
-    pub fn get_value(& self) -> Result<& str, & 'static str>
-    {
-        if let ArgType::Value = self.arg_type
-        {
-            if let Some(result) = & self.arg_result
-            {
-                if let ArgResult::Value(ref value) = result
-                {
-                    return Ok(value)
+    pub fn get_value(&self) -> Result<&str, &'static str> {
+        if let ArgType::Value = self.arg_type {
+            if let Some(result) = &self.arg_result {
+                if let ArgResult::Value(ref value) = result {
+                    return Ok(value);
+                } else {
+                    return Err("Wrong type of result. Something really bad has happened");
                 }
-                else
-                {
-                    return Err("Wrong type of result. Something really bad has happened")
-                }
+            } else {
+                return Err("No value assigned to result");
             }
-            else
-            {
-                return Err("No value assigned to result")
-            }
-        }
-        else
-        {
-            return Err("This argument is not an value")
+        } else {
+            return Err("This argument is not an value");
         }
     }
 
@@ -131,29 +127,19 @@ impl Argument
     /// }
     ///```
 
-    pub fn get_values(& self) -> Result<& Vec<String>, & 'static str>
-    {
-        if let ArgType::ValueList = self.arg_type
-        {
-            if let Some(result) = & self.arg_result
-            {
-                if let ArgResult::ValueList(ref list) = result
-                {
-                    return Ok(list)
+    pub fn get_values(&self) -> Result<&Vec<String>, &'static str> {
+        if let ArgType::ValueList = self.arg_type {
+            if let Some(result) = &self.arg_result {
+                if let ArgResult::ValueList(ref list) = result {
+                    return Ok(list);
+                } else {
+                    return Err("Wrong type of result. Something really bad happened");
                 }
-                else
-                {
-                    return Err("Wrong type of result. Something really bad happened")
-                }
+            } else {
+                return Err("No result specified");
             }
-            else
-            {
-                return Err("No result specified")
-            }
-        }
-        else
-        {
-            return Err("This argument is not an value list")
+        } else {
+            return Err("This argument is not an value list");
         }
     }
 
@@ -172,78 +158,56 @@ impl Argument
     /// }
     ///```
 
-    pub fn get_flag(& self) -> Result<bool, & 'static str>
-    {
-        if let ArgType::Flag = self.arg_type
-        {
-            return Ok(
-                if let Some(_) = self.arg_result
-                {
-                    true
-                }
-                else
-                {
-                    false
-                }
-            )
-        }
-        else
-        {
-            return Err("Argument is not an flag type")
+    pub fn get_flag(&self) -> Result<bool, &'static str> {
+        if let ArgType::Flag = self.arg_type {
+            return Ok(if let Some(_) = self.arg_result {
+                true
+            } else {
+                false
+            });
+        } else {
+            return Err("Argument is not an flag type");
         }
     }
 
-    pub fn add_value(& mut self, input_iter: & mut std::slice::Iter<'_, String>) -> Result<(), String>
-    {
-        match self.arg_type
-        {
-            ArgType::Flag =>
-            {
-                match self.arg_result
-                {
+    pub fn add_value(
+        &mut self,
+        input_iter: &mut std::slice::Iter<'_, String>,
+    ) -> Result<(), String> {
+        match self.arg_type {
+            ArgType::Flag => {
+                match self.arg_result {
                     Some(_) => return Err(String::from("Flag already set")),
                     _ => (),
                 }
                 self.arg_result = Some(ArgResult::Flag);
             }
-            ArgType::Value =>
-            {
-                match self.arg_result
-                {
+            ArgType::Value => {
+                match self.arg_result {
                     Some(_) => return Err(String::from("Value already assigned")),
                     _ => (),
                 }
-                match input_iter.next()
-                {
+                match input_iter.next() {
                     Some(word) => self.arg_result = Some(ArgResult::Value(String::from(word))),
                     None => return Err(String::from("Expected value")),
                 }
-
             }
-            ArgType::ValueList =>
-            {
+            ArgType::ValueList => {
                 let mut new_result = false;
-                match self.arg_result
-                {
+                match self.arg_result {
                     Some(_) => (),
                     None => new_result = true,
                 }
 
-                if new_result
-                {
+                if new_result {
                     self.arg_result = Some(ArgResult::ValueList(Vec::new()));
                 }
 
-                match input_iter.next()
-                {
-                    Some(word) =>
-                    {
-                        match self.arg_result.as_mut().expect("as mut")
-                        {
-                            ArgResult::ValueList(ref mut values) => values.push(String::from(word)),
-                            _ => return Err(String::from("WTF")),
-                        }
-                    }
+                match input_iter.next() {
+                    Some(word) => match self.arg_result.as_mut().expect("as mut") {
+                        ArgResult::ValueList(ref mut values) => values.push(String::from(word)),
+                        _ => return Err(String::from("WTF")),
+                    },
                     None => return Err(String::from("Expected value")),
                 }
             }
@@ -265,52 +229,45 @@ impl Argument
 /// args_list.append_arg(Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).unwrap());
 /// ```
 #[derive(Debug)]
-pub struct ArgumentList
-{
+pub struct ArgumentList {
     pub dangling_values: Vec<String>,
     pub arguments: Vec<Argument>,
 }
 
-impl ArgumentList
-{
+impl ArgumentList {
     /**
     Create ArgumentList with empty vector of arguments.
     */
-    pub fn new() -> ArgumentList
-    {
-        ArgumentList{dangling_values: Vec::new(), arguments: Vec::new()}
+    pub fn new() -> ArgumentList {
+        ArgumentList {
+            dangling_values: Vec::new(),
+            arguments: Vec::new(),
+        }
     }
 
     /**
     Append argument to the end of the list.
     */
-    pub fn append_arg(& mut self, argument: Argument)
-    {
+    pub fn append_arg(&mut self, argument: Argument) {
         self.arguments.push(argument);
     }
 
     /**
     Append dangling values.
     */
-    pub fn append_dangling_value(& mut self, value: & str)
-    {
+    pub fn append_dangling_value(&mut self, value: &str) {
         self.dangling_values.push(String::from(value));
     }
 
     /**
     Search arguments by short name.
     */
-    pub fn search_by_short_name(& mut self, name: char) -> Result<& mut Argument, String>
-    {
-        for x in & mut self.arguments
-        {
-            match x.short
-            {
-                Some(symbol) =>
-                {
-                    if symbol == name
-                    {
-                        return Ok(x)
+    pub fn search_by_short_name(&mut self, name: char) -> Result<&mut Argument, String> {
+        for x in &mut self.arguments {
+            match x.short {
+                Some(symbol) => {
+                    if symbol == name {
+                        return Ok(x);
                     }
                 }
                 None => (),
@@ -322,17 +279,12 @@ impl ArgumentList
     /**
     Search arguments by long name.
     */
-    pub fn search_by_long_name(& mut self, name: & str) -> Result<& mut Argument, String>
-    {
-        for x in & mut self.arguments
-        {
-            match x.long
-            {
-                Some(ref long_name) =>
-                {
-                    if long_name == name
-                    {
-                        return Ok(x)
+    pub fn search_by_long_name(&mut self, name: &str) -> Result<&mut Argument, String> {
+        for x in &mut self.arguments {
+            match x.long {
+                Some(ref long_name) => {
+                    if long_name == name {
+                        return Ok(x);
                     }
                 }
                 None => (),
@@ -341,11 +293,9 @@ impl ArgumentList
         Err(String::from("Argument not found"))
     }
 
-
     /// Returns vector of all generated dangling values (values not attached to any argument)
-    pub fn get_dangling_values(& self) -> & Vec<String>
-    {
-        & self.dangling_values
+    pub fn get_dangling_values(&self) -> &Vec<String> {
+        &self.dangling_values
     }
 
     /// Function that does all the parsing. You need to feed user input as an argument.
@@ -360,61 +310,47 @@ impl ArgumentList
     /// args_list.append_arg(Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).unwrap());
     /// args_list.parse_args(args_to_string_vector(std::env::args())).unwrap();
     /// ```
-    pub fn parse_args(& mut self, input: Vec<String>) -> Result<(), String>
-    {
+    pub fn parse_args(&mut self, input: Vec<String>) -> Result<(), String> {
         let mut input_iter = input.iter();
-        while let Some(word) = input_iter.next()
-        {
+        while let Some(word) = input_iter.next() {
             // Check if word is a short argument, long argument or dangling value
             let word_length = word.chars().count();
-            if word_length == 2
-            {
-                if word.chars().nth(0).expect("first letter") == '-' &&  word.chars().nth(1).expect(& format!("{}", word_length)).is_alphabetic()
+            if word_length == 2 {
+                if word.chars().nth(0).expect("first letter") == '-'
+                    && word
+                        .chars()
+                        .nth(1)
+                        .expect(&format!("{}", word_length))
+                        .is_alphabetic()
                 {
                     // Add value to argument identified by short name
-                    match self.search_by_short_name(word.chars().nth(1).unwrap())
-                    {
-                        Ok(ref mut argument) =>
-                        {
-                            argument.add_value(& mut input_iter)?;
+                    match self.search_by_short_name(word.chars().nth(1).unwrap()) {
+                        Ok(ref mut argument) => {
+                            argument.add_value(&mut input_iter)?;
                         }
-                        Err(msg) =>
-                        {
-                            return Err(format!("Error while parsing arguments: {}", msg))
-                        }
+                        Err(msg) => return Err(format!("Error while parsing arguments: {}", msg)),
                     };
-                }
-                else
-                {
+                } else {
                     // Add as dangling value
                     self.append_dangling_value(word);
                 }
-            }
-            else if word_length > 2
-            {
-                if word.chars().nth(0).unwrap() == '-' && word.chars().nth(1).unwrap() == '-' && word.chars().nth(2).unwrap().is_alphabetic()
+            } else if word_length > 2 {
+                if word.chars().nth(0).unwrap() == '-'
+                    && word.chars().nth(1).unwrap() == '-'
+                    && word.chars().nth(2).unwrap().is_alphabetic()
                 {
                     // Add value to argument identified by long name
-                    match self.search_by_long_name(& word[2..word.len()])
-                    {
-                        Ok(ref mut argument) =>
-                        {
-                            argument.add_value(& mut input_iter)?;
+                    match self.search_by_long_name(&word[2..word.len()]) {
+                        Ok(ref mut argument) => {
+                            argument.add_value(&mut input_iter)?;
                         }
-                        Err(msg) =>
-                        {
-                            return Err(format!("Error while parsing arguments: {}", msg))
-                        }
+                        Err(msg) => return Err(format!("Error while parsing arguments: {}", msg)),
                     };
-                }
-                else
-                {
+                } else {
                     // Add as dangling value
                     self.append_dangling_value(word);
                 }
-            }
-            else
-            {
+            } else {
                 // Add as dangling value
                 self.append_dangling_value(word);
             }
@@ -428,12 +364,10 @@ impl ArgumentList
 /**
 Helper function to transform arguments given by user from Args to vector of String.
 */
-pub fn args_to_string_vector(args: env::Args) -> Vec<String>
-{
+pub fn args_to_string_vector(args: env::Args) -> Vec<String> {
     let mut arguments = Vec::new();
 
-    for x in args
-    {
+    for x in args {
         arguments.push(String::from(x));
     }
     arguments
@@ -444,8 +378,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_works()
-    {
+    fn new_works() {
+        assert!(Argument::new(Option::None, Option::Some("parameter"), ArgType::Flag).is_ok());
+        assert!(Argument::new(Option::Some('x'), Option::None, ArgType::Flag).is_ok());
+        assert!(Argument::new(Option::Some('x'), Option::Some("parameter"), ArgType::Flag).is_ok());
+    }
+
+    #[test]
+    fn new_fails() {
+        assert!(Argument::new(Option::None, Option::None, ArgType::Flag).is_err())
+    }
+
+    #[test]
+    fn parse_works() {
         let args = vec![
             String::from("-d"),
             String::from("-p"),
@@ -453,25 +398,49 @@ mod tests {
             String::from("--an-list"),
             String::from("Marcin"),
             String::from("-l"),
-            String::from("Mazgaj")
+            String::from("Mazgaj"),
         ];
 
         let mut args_list = ArgumentList::new();
         args_list.append_arg(Argument::new(Some('d'), None, ArgType::Flag).expect("append 1"));
         args_list.append_arg(Argument::new(Some('p'), None, ArgType::Value).expect("append 2"));
-        args_list.append_arg(Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).expect("append 3"));
+        args_list.append_arg(
+            Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).expect("append 3"),
+        );
         args_list.parse_args(args).unwrap();
         assert_eq!(args_list.arguments[0].arg_result, Some(ArgResult::Flag));
-        assert_eq!(args_list.arguments[1].arg_result, Some(ArgResult::Value(String::from("/file"))));
-        assert_eq!(args_list.arguments[2].arg_result, Some(ArgResult::ValueList(vec![String::from("Marcin"), String::from("Mazgaj")])));
+        assert_eq!(
+            args_list.arguments[1].arg_result,
+            Some(ArgResult::Value(String::from("/file")))
+        );
+        assert_eq!(
+            args_list.arguments[2].arg_result,
+            Some(ArgResult::ValueList(vec![
+                String::from("Marcin"),
+                String::from("Mazgaj")
+            ]))
+        );
 
-        assert_eq!(args_list.search_by_short_name('d').unwrap().get_flag().unwrap(), true);
-        assert_eq!(args_list.search_by_long_name("an-list").unwrap().get_values().unwrap(), & vec![String::from("Marcin"), String::from("Mazgaj")]);
+        assert_eq!(
+            args_list
+                .search_by_short_name('d')
+                .unwrap()
+                .get_flag()
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            args_list
+                .search_by_long_name("an-list")
+                .unwrap()
+                .get_values()
+                .unwrap(),
+            &vec![String::from("Marcin"), String::from("Mazgaj")]
+        );
     }
 
     #[test]
-    fn get_dangling_values_works()
-    {
+    fn get_dangling_values_works() {
         let args = vec![
             String::from("-d"),
             String::from("-p"),
@@ -487,7 +456,9 @@ mod tests {
 
         args_list.append_arg(Argument::new(Some('d'), None, ArgType::Flag).expect("append 1"));
         args_list.append_arg(Argument::new(Some('p'), None, ArgType::Value).expect("append 2"));
-        args_list.append_arg(Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).expect("append 3"));
+        args_list.append_arg(
+            Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).expect("append 3"),
+        );
 
         args_list.parse_args(args).unwrap();
 
@@ -497,8 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn values_with_spaces_work()
-    {
+    fn values_with_spaces_work() {
         let args = vec![
             String::from("-n"),
             String::from("Marcin Mazgaj"),
@@ -515,7 +485,21 @@ mod tests {
 
         args_list.parse_args(args).unwrap();
 
-        assert_eq!(args_list.search_by_short_name('n').unwrap().get_value().unwrap(), "Marcin Mazgaj");
-        assert_eq!(args_list.search_by_long_name("hello").unwrap().get_values().unwrap(), & vec![String::from("Hello World!"), String::from("Witaj Świecie!")]);
+        assert_eq!(
+            args_list
+                .search_by_short_name('n')
+                .unwrap()
+                .get_value()
+                .unwrap(),
+            "Marcin Mazgaj"
+        );
+        assert_eq!(
+            args_list
+                .search_by_long_name("hello")
+                .unwrap()
+                .get_values()
+                .unwrap(),
+            &vec![String::from("Hello World!"), String::from("Witaj Świecie!")]
+        );
     }
 }
