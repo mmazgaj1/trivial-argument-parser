@@ -30,6 +30,15 @@ impl ArgBuilder {
         self.arg_type = new_type;
         return self;
     }
+
+    pub fn build(&self) -> Result<Argument, String> {
+        let long = if let Some(ref l) = self.long_name {
+            Option::Some(l.as_str())
+        } else {
+            Option::None
+        };
+        Argument::new(self.short_name, long, self.arg_type)
+    }
 }
 
 #[cfg(test)]

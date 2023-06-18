@@ -1,6 +1,8 @@
-pub mod argument;
 pub mod builder;
+pub mod parsable_argument;
 use std::env;
+
+use parsable_argument::HandleableArgument;
 
 /**
 Enum allowing to choose the type of argument.
@@ -28,6 +30,7 @@ pub enum ArgResult {
 
 ///
 /// Argument struct allows to specify type of expected argument, its names and after parsing contains results.
+/// This is the legacy method of defining arguments. Currently using ParsableValueArgument is preffered.
 ///
 /// # Examples
 /// ```
@@ -228,20 +231,24 @@ impl Argument {
 /// args_list.append_arg(Argument::new(Some('p'), None, ArgType::Value).unwrap());
 /// args_list.append_arg(Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).unwrap());
 /// ```
-#[derive(Debug)]
-pub struct ArgumentList {
+pub struct ArgumentList<'a> {
     pub dangling_values: Vec<String>,
     pub arguments: Vec<Argument>,
+    pub parsable_arguments: Vec<&'a mut (dyn HandleableArgument<'a> + 'a)>,
 }
 
-impl ArgumentList {
+impl<'a> ArgumentList<'a> {
+    pub fn arguments(&self) -> &Vec<Argument> {
+        &self.arguments
+    }
     /**
     Create ArgumentList with empty vector of arguments.
     */
-    pub fn new() -> ArgumentList {
+    pub fn new() -> ArgumentList<'a> {
         ArgumentList {
             dangling_values: Vec::new(),
             arguments: Vec::new(),
+            parsable_arguments: Vec::new(),
         }
     }
 
@@ -262,35 +269,75 @@ impl ArgumentList {
     /**
     Search arguments by short name.
     */
-    pub fn search_by_short_name(&mut self, name: char) -> Result<&mut Argument, String> {
+    pub fn search_by_short_name(&mut self, name: char) -> Option<&mut Argument> {
         for x in &mut self.arguments {
             match x.short {
                 Some(symbol) => {
                     if symbol == name {
-                        return Ok(x);
+                        return Some(x);
                     }
                 }
                 None => (),
             };
         }
-        Err(String::from("Argument not found"))
+        Option::None
+    }
+
+    // pub fn search_parsable_by_short_name(
+    //     &mut self,
+    //     name: char,
+    // ) -> Option<&mut &'a mut dyn HandleableArgument> {
+    //     for x in self.parsable_arguments.as_mut_slice() {
+    //         if x.is_by_short(name) {
+    //             return Option::Some(x);
+    //         }
+    //     }
+    //     Option::None
+    // }
+
+    fn handle_parsable_short_name(
+        &mut self,
+        name: char,
+        input_iter: &mut std::slice::Iter<'_, String>,
+    ) -> Result<bool, String> {
+        for x in &mut self.parsable_arguments {
+            if x.is_by_short(name) {
+                x.handle(input_iter)?;
+                return Result::Ok(true);
+            }
+        }
+        return Result::Ok(false);
+    }
+
+    fn handle_parsable_long_name(
+        &mut self,
+        name: &str,
+        input_iter: &mut std::slice::Iter<'_, String>,
+    ) -> Result<bool, String> {
+        for x in &mut self.parsable_arguments {
+            if x.is_by_long(name) {
+                x.handle(input_iter)?;
+                return Result::Ok(true);
+            }
+        }
+        return Result::Ok(false);
     }
 
     /**
     Search arguments by long name.
     */
-    pub fn search_by_long_name(&mut self, name: &str) -> Result<&mut Argument, String> {
+    pub fn search_by_long_name(&mut self, name: &str) -> Option<&mut Argument> {
         for x in &mut self.arguments {
             match x.long {
                 Some(ref long_name) => {
                     if long_name == name {
-                        return Ok(x);
+                        return Option::Some(x);
                     }
                 }
                 None => (),
             }
         }
-        Err(String::from("Argument not found"))
+        Option::None
     }
 
     /// Returns vector of all generated dangling values (values not attached to any argument)
@@ -325,10 +372,20 @@ impl ArgumentList {
                 {
                     // Add value to argument identified by short name
                     match self.search_by_short_name(word.chars().nth(1).unwrap()) {
-                        Ok(ref mut argument) => {
+                        Some(argument) => {
                             argument.add_value(&mut input_iter)?;
                         }
-                        Err(msg) => return Err(format!("Error while parsing arguments: {}", msg)),
+                        None => {
+                            if !self.handle_parsable_short_name(
+                                word.chars().nth(1).unwrap(),
+                                &mut input_iter,
+                            )? {
+                                return Err(format!(
+                                    "Could not find argument identified by {}.",
+                                    word
+                                ));
+                            }
+                        }
                     };
                 } else {
                     // Add as dangling value
@@ -341,10 +398,19 @@ impl ArgumentList {
                 {
                     // Add value to argument identified by long name
                     match self.search_by_long_name(&word[2..word.len()]) {
-                        Ok(ref mut argument) => {
+                        Some(argument) => {
                             argument.add_value(&mut input_iter)?;
                         }
-                        Err(msg) => return Err(format!("Error while parsing arguments: {}", msg)),
+                        Option::None => {
+                            if !self
+                                .handle_parsable_long_name(&word[2..word.len()], &mut input_iter)?
+                            {
+                                return Err(format!(
+                                    "Could not find argument identified by {}.",
+                                    word
+                                ));
+                            }
+                        }
                     };
                 } else {
                     // Add as dangling value
@@ -358,6 +424,13 @@ impl ArgumentList {
 
         // return arguments list with filled parsed values
         Ok(())
+    }
+
+    /**
+     * Registers argument reference to be used while parsing.
+     */
+    pub fn register_parsable(&mut self, arg: &'a mut impl HandleableArgument<'a>) {
+        self.parsable_arguments.push(arg);
     }
 }
 
@@ -375,6 +448,8 @@ pub fn args_to_string_vector(args: env::Args) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    use crate::parsable_argument::ParsableValueArgument;
+
     use super::*;
 
     #[test]
@@ -408,7 +483,7 @@ mod tests {
             Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).expect("append 3"),
         );
         args_list.parse_args(args).unwrap();
-        assert_eq!(args_list.arguments[0].arg_result, Some(ArgResult::Flag));
+        assert_eq!(args_list.arguments()[0].arg_result, Some(ArgResult::Flag));
         assert_eq!(
             args_list.arguments[1].arg_result,
             Some(ArgResult::Value(String::from("/file")))
@@ -501,5 +576,33 @@ mod tests {
                 .unwrap(),
             &vec![String::from("Hello World!"), String::from("Witaj Świecie!")]
         );
+    }
+
+    #[test]
+    fn parsable_works() {
+        let args = vec![
+            String::from("-n"),
+            String::from("5"),
+            String::from("--hello"),
+            String::from("Hello World!"),
+            String::from("--hello"),
+            String::from("Witaj Świecie!"),
+        ];
+
+        let mut args_list = ArgumentList::new();
+        let mut argument_int = ParsableValueArgument::new_integer(
+            parsable_argument::ArgumentIdentification::Short('n'),
+        );
+        let mut argument_str = ParsableValueArgument::new_string(
+            parsable_argument::ArgumentIdentification::Long(String::from("hello")),
+        );
+        args_list.register_parsable(&mut argument_int);
+        args_list.register_parsable(&mut argument_str);
+        args_list
+            .parse_args(args)
+            .expect("Failed while parsing arguments");
+        assert_eq!(argument_int.first_value().unwrap(), &5);
+        assert_eq!(argument_str.first_value().unwrap(), "Hello World!");
+        assert_eq!(argument_str.values().get(1).unwrap(), "Witaj Świecie!");
     }
 }
