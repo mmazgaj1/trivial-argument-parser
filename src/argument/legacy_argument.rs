@@ -217,6 +217,10 @@ impl Argument {
     pub fn long(&self) -> &Option<String> {
         &self.long
     }
+
+    pub fn arg_type(&self) -> &ArgType {
+        &self.arg_type
+    }
 }
 
 #[cfg(test)]

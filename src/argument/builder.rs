@@ -52,4 +52,50 @@ mod tests {
         assert_eq!(arg_builder.short_name, Option::None);
         assert_eq!(arg_builder.arg_type, ArgType::Value);
     }
+
+    #[test]
+    fn build_short_works() {
+        let arg = ArgBuilder::new(ArgType::Value)
+            .set_short_name('x')
+            .build()
+            .unwrap();
+        assert_eq!(arg.short(), &Option::Some('x'));
+        assert_eq!(arg.long(), &Option::None);
+        assert_eq!(arg.arg_type(), &ArgType::Value);
+    }
+
+    #[test]
+    fn build_long_works() {
+        let arg = ArgBuilder::new(ArgType::Value)
+            .set_long_name("my_arg")
+            .build()
+            .unwrap();
+        assert_eq!(arg.long(), &Option::Some(String::from("my_arg")));
+        assert_eq!(arg.short(), &Option::None);
+        assert_eq!(arg.arg_type(), &ArgType::Value);
+    }
+
+    #[test]
+    fn build_both_works() {
+        let arg = ArgBuilder::new(ArgType::Value)
+            .set_long_name("my_arg")
+            .set_short_name('x')
+            .build()
+            .unwrap();
+        assert_eq!(arg.long(), &Option::Some(String::from("my_arg")));
+        assert_eq!(arg.short(), &Option::Some('x'));
+        assert_eq!(arg.arg_type(), &ArgType::Value);
+    }
+
+    #[test]
+    fn set_type_works() {
+        let arg = ArgBuilder::new(ArgType::Value)
+            .set_long_name("my_arg")
+            .set_type(ArgType::Flag)
+            .build()
+            .unwrap();
+        assert_eq!(arg.long(), &Option::Some(String::from("my_arg")));
+        assert_eq!(arg.short(), &Option::None);
+        assert_eq!(arg.arg_type(), &ArgType::Flag);
+    }
 }
