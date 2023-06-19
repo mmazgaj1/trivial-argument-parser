@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, iter::Peekable};
 /// Defines how arguments can be identified.
 #[derive(Debug)]
 pub enum ArgumentIdentification {
@@ -14,7 +14,9 @@ pub enum ArgumentIdentification {
  */
 pub struct ParsableValueArgument<V> {
     identification: ArgumentIdentification,
-    handler: Box<dyn Fn(&mut std::slice::Iter<'_, String>, &mut Vec<V>) -> Result<V, String>>,
+    handler: Box<
+        dyn Fn(&mut Peekable<&mut std::slice::Iter<'_, String>>, &mut Vec<V>) -> Result<V, String>,
+    >,
     values: Vec<V>,
 }
 
@@ -29,7 +31,10 @@ impl<V> Debug for ParsableValueArgument<V> {
 /// Unifies how parsable arguments are parsed.
 pub trait HandleableArgument<'a> {
     /// Handles argument. Gets all needed values from input iterator.
-    fn handle(&mut self, input_iter: &mut std::slice::Iter<'_, String>) -> Result<(), String>;
+    fn handle(
+        &mut self,
+        input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
+    ) -> Result<(), String>;
     /// Check if this argument is identified by specified short name.
     fn is_by_short(&self, name: char) -> bool;
     /// Check if this argument is identified by specified long name.
@@ -41,7 +46,8 @@ pub trait HandleableArgument<'a> {
 impl<V> ParsableValueArgument<V> {
     pub fn new<C>(identification: ArgumentIdentification, handler: C) -> ParsableValueArgument<V>
     where
-        C: Fn(&mut std::slice::Iter<'_, String>, &mut Vec<V>) -> Result<V, String> + 'static,
+        C: Fn(&mut Peekable<&mut std::slice::Iter<'_, String>>, &mut Vec<V>) -> Result<V, String>
+            + 'static,
     {
         ParsableValueArgument::<V> {
             identification,
@@ -78,7 +84,8 @@ impl ParsableValueArgument<i64> {
      * Default integer type argument value handler. Checks whether value contains only digits
      */
     pub fn new_integer(identification: ArgumentIdentification) -> ParsableValueArgument<i64> {
-        let handler = |input_iter: &mut std::slice::Iter<'_, String>, _values: &mut Vec<i64>| {
+        let handler = |input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
+                       _values: &mut Vec<i64>| {
             if let Some(v) = input_iter.next() {
                 let validation = ParsableValueArgument::validate_integer(v);
                 if let Some(err) = validation {
@@ -101,7 +108,8 @@ impl ParsableValueArgument<String> {
      * Default string type argument value handler.
      */
     pub fn new_string(identification: ArgumentIdentification) -> ParsableValueArgument<String> {
-        let handler = |input_iter: &mut std::slice::Iter<'_, String>, _values: &mut Vec<String>| {
+        let handler = |input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
+                       _values: &mut Vec<String>| {
             if let Some(v) = input_iter.next() {
                 Result::Ok(String::from(v))
             } else {
@@ -113,11 +121,10 @@ impl ParsableValueArgument<String> {
 }
 
 impl<'a, V> HandleableArgument<'a> for ParsableValueArgument<V> {
-    fn handle(&mut self, input_iter: &mut std::slice::Iter<'_, String>) -> Result<(), String> {
-        // let value = input_iter.next().unwrap();
-        // if let Option::Some(err) = self.validate(value) {
-        //     return Result::Err(err);
-        // }
+    fn handle(
+        &mut self,
+        input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
+    ) -> Result<(), String> {
         let result = (self.handler)(input_iter, &mut self.values)?;
         self.values.push(result);
         Result::Ok(())
@@ -150,6 +157,8 @@ impl<'a, V> HandleableArgument<'a> for ParsableValueArgument<V> {
 
 #[cfg(test)]
 mod test {
+    use std::borrow::BorrowMut;
+
     use super::{HandleableArgument, ParsableValueArgument};
 
     #[test]
@@ -184,23 +193,33 @@ mod test {
     fn basic_integer_argument_works() {
         let mut arg =
             ParsableValueArgument::<i64>::new_integer(super::ArgumentIdentification::Short('i'));
-        assert!(arg.handle(&mut vec![String::from("123")].iter()).is_ok());
+        assert!(arg
+            .handle(&mut vec![String::from("123")].iter().borrow_mut().peekable())
+            .is_ok());
         assert_eq!(arg.values.get(0).unwrap(), &123);
-        assert!(arg.handle(&mut vec![String::from("333")].iter()).is_ok());
+        assert!(arg
+            .handle(&mut vec![String::from("333")].iter().borrow_mut().peekable())
+            .is_ok());
         assert_eq!(2, arg.values.len());
         assert_eq!(arg.values.get(0).unwrap(), &123);
         assert_eq!(arg.values.get(1).unwrap(), &333);
-        assert!(arg.handle(&mut vec![String::from("-333")].iter()).is_ok());
+        assert!(arg
+            .handle(&mut vec![String::from("-333")].iter().borrow_mut().peekable())
+            .is_ok());
     }
 
     #[test]
     fn basic_integer_argument_handler_fails_invalid_number() {
         let mut arg =
             ParsableValueArgument::<i64>::new_integer(super::ArgumentIdentification::Short('i'));
-        assert!(arg.handle(&mut vec![String::from("-")].iter()).is_err());
-        assert!(arg.handle(&mut vec![String::from("12a")].iter()).is_err());
         assert!(arg
-            .handle(&mut vec![String::from("123.12")].iter())
+            .handle(&mut vec![String::from("-")].iter().borrow_mut().peekable())
+            .is_err());
+        assert!(arg
+            .handle(&mut vec![String::from("12a")].iter().borrow_mut().peekable())
+            .is_err());
+        assert!(arg
+            .handle(&mut vec![String::from("123.12")].iter().borrow_mut().peekable())
             .is_err());
     }
 
@@ -208,7 +227,9 @@ mod test {
     fn first_value_works() {
         let mut arg = ParsableValueArgument::new_integer(super::ArgumentIdentification::Short('i'));
         assert!(arg.first_value().is_none());
-        assert!(arg.handle(&mut vec![String::from("123")].iter()).is_ok());
+        assert!(arg
+            .handle(&mut vec![String::from("123")].iter().borrow_mut().peekable())
+            .is_ok());
         assert_eq!(arg.first_value().unwrap(), &123);
     }
 }

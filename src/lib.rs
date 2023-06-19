@@ -1,6 +1,6 @@
 pub mod builder;
 pub mod parsable_argument;
-use std::env;
+use std::{borrow::BorrowMut, env, iter::Peekable};
 
 use parsable_argument::HandleableArgument;
 
@@ -175,7 +175,7 @@ impl Argument {
 
     pub fn add_value(
         &mut self,
-        input_iter: &mut std::slice::Iter<'_, String>,
+        input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
     ) -> Result<(), String> {
         match self.arg_type {
             ArgType::Flag => {
@@ -283,22 +283,10 @@ impl<'a> ArgumentList<'a> {
         Option::None
     }
 
-    // pub fn search_parsable_by_short_name(
-    //     &mut self,
-    //     name: char,
-    // ) -> Option<&mut &'a mut dyn HandleableArgument> {
-    //     for x in self.parsable_arguments.as_mut_slice() {
-    //         if x.is_by_short(name) {
-    //             return Option::Some(x);
-    //         }
-    //     }
-    //     Option::None
-    // }
-
     fn handle_parsable_short_name(
         &mut self,
         name: char,
-        input_iter: &mut std::slice::Iter<'_, String>,
+        input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
     ) -> Result<bool, String> {
         for x in &mut self.parsable_arguments {
             if x.is_by_short(name) {
@@ -312,7 +300,7 @@ impl<'a> ArgumentList<'a> {
     fn handle_parsable_long_name(
         &mut self,
         name: &str,
-        input_iter: &mut std::slice::Iter<'_, String>,
+        input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
     ) -> Result<bool, String> {
         for x in &mut self.parsable_arguments {
             if x.is_by_long(name) {
@@ -358,7 +346,8 @@ impl<'a> ArgumentList<'a> {
     /// args_list.parse_args(args_to_string_vector(std::env::args())).unwrap();
     /// ```
     pub fn parse_args(&mut self, input: Vec<String>) -> Result<(), String> {
-        let mut input_iter = input.iter();
+        let mut iter = input.iter();
+        let mut input_iter = iter.borrow_mut().peekable();
         while let Some(word) = input_iter.next() {
             // Check if word is a short argument, long argument or dangling value
             let word_length = word.chars().count();
