@@ -225,6 +225,8 @@ impl Argument {
 
 #[cfg(test)]
 mod test {
+    use std::borrow::BorrowMut;
+
     use crate::argument::legacy_argument::{ArgType, Argument};
 
     #[test]
@@ -237,5 +239,53 @@ mod test {
     #[test]
     fn new_fails() {
         assert!(Argument::new(Option::None, Option::None, ArgType::Flag).is_err())
+    }
+
+    #[test]
+    fn value_works() {
+        let mut arg =
+            Argument::new(Option::None, Option::Some("parameter"), ArgType::Value).unwrap();
+        arg.add_value(
+            &mut vec![String::from("my value")]
+                .iter()
+                .borrow_mut()
+                .peekable(),
+        )
+        .unwrap();
+        let val = arg.get_value();
+        assert!(val.is_ok());
+        assert_eq!(val.unwrap(), "my value");
+    }
+
+    #[test]
+    fn values_works() {
+        let mut arg =
+            Argument::new(Option::None, Option::Some("parameter"), ArgType::Value).unwrap();
+        let inputs_vec = vec![String::from("my value"), String::from("My second value")];
+        let mut inputs_iter = inputs_vec.iter();
+        let mut inputs = inputs_iter.borrow_mut().peekable();
+        arg.add_value(&mut inputs).unwrap();
+        arg.add_value(&mut inputs).unwrap();
+        let val = arg.get_values();
+        assert!(val.is_ok());
+        assert_eq!(val.unwrap().len(), 2);
+        assert_eq!(val.unwrap().get(0).unwrap(), "my value");
+        assert_eq!(val.unwrap().get(1).unwrap(), "My second value");
+    }
+
+    #[test]
+    fn flag_works() {
+        let mut arg =
+            Argument::new(Option::None, Option::Some("parameter"), ArgType::Value).unwrap();
+        arg.add_value(
+            &mut vec![String::from("my value")]
+                .iter()
+                .borrow_mut()
+                .peekable(),
+        )
+        .unwrap();
+        let val = arg.get_flag();
+        assert!(val.is_ok());
+        assert_eq!(val.unwrap(), true);
     }
 }
