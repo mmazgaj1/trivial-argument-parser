@@ -1,12 +1,5 @@
-use std::{fmt::Debug, iter::Peekable};
-/// Defines how arguments can be identified.
-#[derive(Debug)]
-pub enum ArgumentIdentification {
-    Short(char),
-    Long(String),
-    Both(char, String),
-}
-
+use super::ArgumentIdentification;
+use std::iter::Peekable;
 /**
  * Structure which defines how given argument should be handled. Allows for automatic parsing and validation.
  * Mutable reference to parsable argument definition has to be registered in ArgumentList.
@@ -18,14 +11,6 @@ pub struct ParsableValueArgument<V> {
         dyn Fn(&mut Peekable<&mut std::slice::Iter<'_, String>>, &mut Vec<V>) -> Result<V, String>,
     >,
     values: Vec<V>,
-}
-
-impl<V> Debug for ParsableValueArgument<V> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ParsableValueArgument")
-            .field("identification", &self.identification)
-            .finish()
-    }
 }
 
 /// Unifies how parsable arguments are parsed.

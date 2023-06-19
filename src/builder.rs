@@ -1,4 +1,4 @@
-use crate::*;
+use crate::argument::legacy_argument::{ArgType, Argument};
 
 pub struct ArgBuilder {
     arg_type: ArgType,
