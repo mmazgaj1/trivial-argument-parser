@@ -1,5 +1,5 @@
 pub mod argument;
-pub mod builder;
+
 use std::{borrow::BorrowMut, env, iter::Peekable};
 
 use argument::{legacy_argument::Argument, parsable_argument::HandleableArgument};

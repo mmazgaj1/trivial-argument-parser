@@ -1,3 +1,4 @@
+pub mod builder;
 pub mod legacy_argument;
 pub mod parsable_argument;
 
