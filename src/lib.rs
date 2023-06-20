@@ -9,7 +9,7 @@ use argument::{legacy_argument::Argument, parsable_argument::HandleableArgument}
 ///
 /// # Examples
 /// ```
-/// use trivial_argument_parser::*;
+/// use trivial_argument_parser::{ArgumentList, argument::legacy_argument::*};
 /// let mut args_list = ArgumentList::new();
 /// args_list.append_arg(Argument::new(Some('d'), None, ArgType::Flag).unwrap());
 /// args_list.append_arg(Argument::new(Some('p'), None, ArgType::Value).unwrap());
@@ -121,7 +121,7 @@ impl<'a> ArgumentList<'a> {
     ///
     /// # Examples
     /// ```
-    /// use trivial_argument_parser::*;
+    /// use trivial_argument_parser::{ArgumentList, args_to_string_vector, argument::legacy_argument::*};
     ///
     /// let mut args_list = ArgumentList::new();
     /// args_list.append_arg(Argument::new(Some('d'), None, ArgType::Flag).unwrap());

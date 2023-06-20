@@ -26,7 +26,7 @@ pub enum ArgResult {
 ///
 /// # Examples
 /// ```
-/// use trivial_argument_parser::*;
+/// use trivial_argument_parser::argument::legacy_argument::*;
 /// let mut example_argument = Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).unwrap();
 /// ```
 
@@ -82,7 +82,8 @@ impl Argument {
     ///
     ///# Examples
     ///```
-    /// use trivial_argument_parser::*;
+    /// use trivial_argument_parser::argument::legacy_argument::*;
+    /// use trivial_argument_parser::ArgumentList;
     /// let mut args_list = ArgumentList::new();
     /// args_list.append_arg(Argument::new(Some('v'), None, ArgType::Value).unwrap());
     /// args_list.parse_args(vec![String::from("-v"), String::from("VALUE")]).unwrap();
@@ -110,7 +111,7 @@ impl Argument {
     ///
     ///# Examples
     ///```
-    /// use trivial_argument_parser::*;
+    /// use trivial_argument_parser::{argument::legacy_argument::*, ArgumentList};
     /// let mut args_list = ArgumentList::new();
     /// args_list.append_arg(Argument::new(Some('l'), None, ArgType::ValueList).unwrap());
     /// args_list.parse_args(vec![String::from("-l"), String::from("cos")]).unwrap();
@@ -142,7 +143,7 @@ impl Argument {
     ///
     ///# Examples
     ///```
-    /// use trivial_argument_parser::*;
+    /// use trivial_argument_parser::{ArgumentList, args_to_string_vector, argument::legacy_argument::*};
     /// let mut args_list = ArgumentList::new();
     /// args_list.append_arg(Argument::new(Some('d'), None, ArgType::Flag).unwrap());
     /// args_list.parse_args(args_to_string_vector(std::env::args())).unwrap();
@@ -258,9 +259,9 @@ mod test {
     }
 
     #[test]
-    fn values_works() {
+    fn value_list_works() {
         let mut arg =
-            Argument::new(Option::None, Option::Some("parameter"), ArgType::Value).unwrap();
+            Argument::new(Option::None, Option::Some("parameter"), ArgType::ValueList).unwrap();
         let inputs_vec = vec![String::from("my value"), String::from("My second value")];
         let mut inputs_iter = inputs_vec.iter();
         let mut inputs = inputs_iter.borrow_mut().peekable();
@@ -276,7 +277,7 @@ mod test {
     #[test]
     fn flag_works() {
         let mut arg =
-            Argument::new(Option::None, Option::Some("parameter"), ArgType::Value).unwrap();
+            Argument::new(Option::None, Option::Some("parameter"), ArgType::Flag).unwrap();
         arg.add_value(
             &mut vec![String::from("my value")]
                 .iter()
