@@ -6,8 +6,8 @@ pub struct ArgBuilder {
     long_name: Option<String>,
 }
 
-/// Builder needs
 impl ArgBuilder {
+    /// Builder needs to be created with argument type specified.
     pub fn new(arg_type: ArgType) -> ArgBuilder {
         return ArgBuilder {
             arg_type,

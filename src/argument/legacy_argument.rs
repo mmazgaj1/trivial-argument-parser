@@ -259,6 +259,17 @@ mod test {
     }
 
     #[test]
+    fn value_fails_too_many_calls() {
+        let mut arg =
+            Argument::new(Option::None, Option::Some("parameter"), ArgType::Value).unwrap();
+        let inputs_vec = vec![String::from("my value"), String::from("second_value")];
+        let mut inputs_iter = inputs_vec.iter();
+        let mut inputs = inputs_iter.borrow_mut().peekable();
+        arg.add_value(&mut inputs).unwrap();
+        assert!(arg.add_value(&mut inputs).is_err());
+    }
+
+    #[test]
     fn value_list_works() {
         let mut arg =
             Argument::new(Option::None, Option::Some("parameter"), ArgType::ValueList).unwrap();

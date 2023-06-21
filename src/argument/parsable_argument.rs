@@ -66,7 +66,7 @@ impl ParsableValueArgument<i64> {
         Option::None
     }
     /**
-     * Default integer type argument value handler. Checks whether value contains only digits
+     * Default integer type argument value handler. Checks whether value contains only digits or starts with minus sign.
      */
     pub fn new_integer(identification: ArgumentIdentification) -> ParsableValueArgument<i64> {
         let handler = |input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,

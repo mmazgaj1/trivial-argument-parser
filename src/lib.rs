@@ -53,7 +53,24 @@ impl<'a> ArgumentList<'a> {
     /**
     Search arguments by short name.
     */
-    pub fn search_by_short_name(&mut self, name: char) -> Option<&mut Argument> {
+    pub fn search_by_short_name(&self, name: char) -> Option<&Argument> {
+        for x in &self.arguments {
+            match x.short() {
+                Some(symbol) => {
+                    if symbol == &name {
+                        return Some(x);
+                    }
+                }
+                None => (),
+            };
+        }
+        Option::None
+    }
+
+    /**
+    Search arguments by short name.
+    */
+    pub fn search_by_short_name_mut(&mut self, name: char) -> Option<&mut Argument> {
         for x in &mut self.arguments {
             match x.short() {
                 Some(symbol) => {
@@ -117,7 +134,9 @@ impl<'a> ArgumentList<'a> {
         &self.dangling_values
     }
 
-    /// Function that does all the parsing. You need to feed user input as an argument.
+    /// Function that does all the parsing. You need to feed user input as an argument. Handles both
+    /// legacy type arguments and parsable value arguments. When used with mixed type arguments, parsable
+    /// arguments cannot be accessed before the last reference to ArgumentList or it being dropped.
     ///
     /// # Examples
     /// ```
@@ -125,9 +144,13 @@ impl<'a> ArgumentList<'a> {
     ///
     /// let mut args_list = ArgumentList::new();
     /// args_list.append_arg(Argument::new(Some('d'), None, ArgType::Flag).unwrap());
-    /// args_list.append_arg(Argument::new(Some('p'), None, ArgType::Value).unwrap());
-    /// args_list.append_arg(Argument::new(Some('l'), Some("an-list"), ArgType::ValueList).unwrap());
+    /// let mut argument_str =ParsableValueArgument::new_string(ArgumentIdentification::Long(String::from("hello")));
+    /// args_list.register_parsable(&mut argument_int);
     /// args_list.parse_args(args_to_string_vector(std::env::args())).unwrap();
+    /// // First read legacy arguments.
+    /// args_list.search_by_short_name('n');
+    /// // Then access parsable value arguments since last reference was used.
+    /// argument_str.first_value();
     /// ```
     pub fn parse_args(&mut self, input: Vec<String>) -> Result<(), String> {
         let mut iter = input.iter();
@@ -144,7 +167,7 @@ impl<'a> ArgumentList<'a> {
                         .is_alphabetic()
                 {
                     // Add value to argument identified by short name
-                    match self.search_by_short_name(word.chars().nth(1).unwrap()) {
+                    match self.search_by_short_name_mut(word.chars().nth(1).unwrap()) {
                         Some(argument) => {
                             argument.add_value(&mut input_iter)?;
                         }
@@ -262,7 +285,7 @@ mod tests {
 
         assert_eq!(
             args_list
-                .search_by_short_name('d')
+                .search_by_short_name_mut('d')
                 .unwrap()
                 .get_flag()
                 .unwrap(),
@@ -326,7 +349,7 @@ mod tests {
 
         assert_eq!(
             args_list
-                .search_by_short_name('n')
+                .search_by_short_name_mut('n')
                 .unwrap()
                 .get_value()
                 .unwrap(),
@@ -343,7 +366,7 @@ mod tests {
     }
 
     #[test]
-    fn parsable_works() {
+    fn parse_with_parsable_arguments_works() {
         let args = vec![
             String::from("-n"),
             String::from("5"),
@@ -364,6 +387,64 @@ mod tests {
             .parse_args(args)
             .expect("Failed while parsing arguments");
         assert_eq!(argument_int.first_value().unwrap(), &5);
+        assert_eq!(argument_str.first_value().unwrap(), "Hello World!");
+        assert_eq!(argument_str.values().get(1).unwrap(), "Witaj Świecie!");
+    }
+
+    #[test]
+    fn parse_drop_parser_works() {
+        let args = vec![
+            String::from("-n"),
+            String::from("5"),
+            String::from("--hello"),
+            String::from("Hello World!"),
+            String::from("--hello"),
+            String::from("Witaj Świecie!"),
+        ];
+        let mut argument_int =
+            ParsableValueArgument::new_integer(ArgumentIdentification::Short('n'));
+        let mut argument_str =
+            ParsableValueArgument::new_string(ArgumentIdentification::Long(String::from("hello")));
+        {
+            let mut args_list = ArgumentList::new();
+            args_list.register_parsable(&mut argument_int);
+            args_list.register_parsable(&mut argument_str);
+            args_list
+                .parse_args(args)
+                .expect("Failed while parsing arguments");
+        }
+        assert_eq!(argument_int.first_value().unwrap(), &5);
+        assert_eq!(argument_str.first_value().unwrap(), "Hello World!");
+        assert_eq!(argument_str.values().get(1).unwrap(), "Witaj Świecie!");
+    }
+
+    #[test]
+    fn parse_with_mixed_arguments_works() {
+        let args = vec![
+            String::from("-n"),
+            String::from("5"),
+            String::from("--hello"),
+            String::from("Hello World!"),
+            String::from("--hello"),
+            String::from("Witaj Świecie!"),
+        ];
+
+        let mut args_list = ArgumentList::new();
+        let mut argument_str =
+            ParsableValueArgument::new_string(ArgumentIdentification::Long(String::from("hello")));
+        args_list.register_parsable(&mut argument_str);
+        args_list.append_arg(Argument::new(Some('n'), None, ArgType::Value).unwrap());
+        args_list
+            .parse_args(args)
+            .expect("Failed while parsing arguments");
+        assert_eq!(
+            args_list
+                .search_by_short_name('n')
+                .unwrap()
+                .get_value()
+                .unwrap(),
+            "5"
+        );
         assert_eq!(argument_str.first_value().unwrap(), "Hello World!");
         assert_eq!(argument_str.values().get(1).unwrap(), "Witaj Świecie!");
     }
