@@ -140,12 +140,19 @@ impl<'a> ArgumentList<'a> {
     ///
     /// # Examples
     /// ```
-    /// use trivial_argument_parser::{ArgumentList, args_to_string_vector, argument::legacy_argument::*};
+    /// use trivial_argument_parser::{
+    ///     ArgumentList, args_to_string_vector,
+    ///     argument::{
+    ///         legacy_argument::*,
+    ///         parsable_argument::ParsableValueArgument,
+    ///         ArgumentIdentification
+    ///     }
+    /// };
     ///
     /// let mut args_list = ArgumentList::new();
     /// args_list.append_arg(Argument::new(Some('d'), None, ArgType::Flag).unwrap());
-    /// let mut argument_str =ParsableValueArgument::new_string(ArgumentIdentification::Long(String::from("hello")));
-    /// args_list.register_parsable(&mut argument_int);
+    /// let mut argument_str = ParsableValueArgument::new_string(ArgumentIdentification::Long(String::from("hello")));
+    /// args_list.register_parsable(&mut argument_str);
     /// args_list.parse_args(args_to_string_vector(std::env::args())).unwrap();
     /// // First read legacy arguments.
     /// args_list.search_by_short_name('n');
