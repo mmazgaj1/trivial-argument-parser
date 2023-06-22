@@ -2,8 +2,10 @@ use super::ArgumentIdentification;
 use std::iter::Peekable;
 /**
  * Structure which defines how given argument should be handled. Allows for automatic parsing and validation.
- * Mutable reference to parsable argument definition has to be registered in ArgumentList.
- * This method of defining arguments is preferred as oposed to legacy method.
+ * Mutable borrow to parsable argument definition has to be registered in ArgumentList. Because of that
+ * registered arguments cannot be used while those borrows exist. Either ArgumentList instance has to be dropped
+ * or there are no further usages of it. This method of defining arguments is preferred as oposed to using
+ * the legacy API.
  */
 pub struct ParsableValueArgument<V> {
     identification: ArgumentIdentification,

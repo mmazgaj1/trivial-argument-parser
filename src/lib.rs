@@ -112,10 +112,24 @@ impl<'a> ArgumentList<'a> {
         return Result::Ok(false);
     }
 
+    pub fn search_by_long_name(&self, name: &str) -> Option<&Argument> {
+        for x in &self.arguments {
+            match x.long() {
+                Some(ref long_name) => {
+                    if long_name == name {
+                        return Option::Some(x);
+                    }
+                }
+                None => (),
+            }
+        }
+        Option::None
+    }
+
     /**
     Search arguments by long name.
     */
-    pub fn search_by_long_name(&mut self, name: &str) -> Option<&mut Argument> {
+    pub fn search_by_long_name_mut(&mut self, name: &str) -> Option<&mut Argument> {
         for x in &mut self.arguments {
             match x.long() {
                 Some(ref long_name) => {
@@ -136,7 +150,7 @@ impl<'a> ArgumentList<'a> {
 
     /// Function that does all the parsing. You need to feed user input as an argument. Handles both
     /// legacy type arguments and parsable value arguments. When used with mixed type arguments, parsable
-    /// arguments cannot be accessed before the last reference to ArgumentList or it being dropped.
+    /// arguments cannot be accessed before all borrows to ArgumentList are released or it gets dropped.
     ///
     /// # Examples
     /// ```
@@ -200,7 +214,7 @@ impl<'a> ArgumentList<'a> {
                     && word.chars().nth(2).unwrap().is_alphabetic()
                 {
                     // Add value to argument identified by long name
-                    match self.search_by_long_name(&word[2..word.len()]) {
+                    match self.search_by_long_name_mut(&word[2..word.len()]) {
                         Some(argument) => {
                             argument.add_value(&mut input_iter)?;
                         }
@@ -230,7 +244,7 @@ impl<'a> ArgumentList<'a> {
     }
 
     /**
-     * Registers argument reference to be used while parsing.
+     * Registers argument mutable borrow to be used while parsing.
      */
     pub fn register_parsable(&mut self, arg: &'a mut impl HandleableArgument<'a>) {
         self.parsable_arguments.push(arg);
@@ -292,7 +306,7 @@ mod tests {
 
         assert_eq!(
             args_list
-                .search_by_short_name_mut('d')
+                .search_by_short_name('d')
                 .unwrap()
                 .get_flag()
                 .unwrap(),
@@ -356,7 +370,7 @@ mod tests {
 
         assert_eq!(
             args_list
-                .search_by_short_name_mut('n')
+                .search_by_short_name('n')
                 .unwrap()
                 .get_value()
                 .unwrap(),
