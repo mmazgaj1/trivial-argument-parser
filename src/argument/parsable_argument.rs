@@ -118,23 +118,11 @@ impl<'a, V> HandleableArgument<'a> for ParsableValueArgument<V> {
     }
 
     fn is_by_short(&self, name: char) -> bool {
-        if let ArgumentIdentification::Short(c) = self.identification {
-            return c == name;
-        }
-        if let ArgumentIdentification::Both(c, _) = self.identification {
-            return c == name;
-        }
-        false
+        self.identification().is_by_short(name)
     }
 
     fn is_by_long(&self, name: &str) -> bool {
-        if let ArgumentIdentification::Long(s) = &self.identification {
-            return s == name;
-        }
-        if let ArgumentIdentification::Both(_, s) = &self.identification {
-            return s == name;
-        }
-        false
+        self.identification().is_by_long(name)
     }
 
     fn identification(&self) -> &ArgumentIdentification {
