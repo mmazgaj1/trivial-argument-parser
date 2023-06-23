@@ -5,7 +5,9 @@ authors = ["Marcin Mazgaj <mmazgaj@protonmail.com>"]
 edition = "2018"
 license = "MIT"
 description = "Small library for parsing CLI arguments."
-exclude = ["src/builder.rs",]
+repository = "https://github.com/mmazgaj1/trivial-argument-parser"
+readme = "README.md"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
