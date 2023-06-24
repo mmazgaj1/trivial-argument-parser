@@ -8,19 +8,19 @@ Simple argument parser written in Rust. It provides simple way of defining and p
 ```rust
 use trivial_argument_parser::{
     args_to_string_vector,
-    parsable_argument::{self, ParsableValueArgument},
+    argument::{parsable_argument::ParsableValueArgument, ArgumentIdentification},
     ArgumentList,
 };
 
 fn main() {
     let mut args_list = ArgumentList::new();
-    let mut argument_int =
-        ParsableValueArgument::new_integer(
-            parsable_argument::ArgumentIdentification::Short('n')
+    let mut argument_int = ParsableValueArgument::new_integer(
+            ArgumentIdentification::Short('n')
         );
-    let mut argument_str = ParsableValueArgument::new_string(
-        parsable_argument::ArgumentIdentification::Long(String::from("path")),
-    );
+    let mut argument_str =
+        ParsableValueArgument::new_string(
+            ArgumentIdentification::Long(String::from("path"))
+        );
     args_list.register_parsable(&mut argument_int);
     args_list.register_parsable(&mut argument_str);
     args_list
