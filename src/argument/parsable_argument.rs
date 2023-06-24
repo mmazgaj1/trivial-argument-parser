@@ -73,17 +73,17 @@ impl ParsableValueArgument<i64> {
     pub fn new_integer(identification: ArgumentIdentification) -> ParsableValueArgument<i64> {
         let handler = |input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
                        _values: &mut Vec<i64>| {
-            if let Some(v) = input_iter.next() {
+            if let Option::Some(v) = input_iter.next() {
                 let validation = ParsableValueArgument::validate_integer(v);
-                if let Some(err) = validation {
+                if let Option::Some(err) = validation {
                     return Result::Err(err);
                 }
                 match v.parse() {
-                    Ok(v) => Result::Ok(v),
-                    Err(err) => Result::Err(format!("{}", err)),
+                    Result::Ok(v) => Result::Ok(v),
+                    Result::Err(err) => Result::Err(format!("{}", err)),
                 }
             } else {
-                Err(String::from("No remaining input values."))
+                Result::Err(String::from("No remaining input values."))
             }
         };
         ParsableValueArgument::new(identification, handler)

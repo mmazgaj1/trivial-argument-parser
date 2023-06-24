@@ -15,7 +15,9 @@ use trivial_argument_parser::{
 fn main() {
     let mut args_list = ArgumentList::new();
     let mut argument_int =
-        ParsableValueArgument::new_integer(parsable_argument::ArgumentIdentification::Short('n'));
+        ParsableValueArgument::new_integer(
+            parsable_argument::ArgumentIdentification::Short('n')
+        );
     let mut argument_str = ParsableValueArgument::new_string(
         parsable_argument::ArgumentIdentification::Long(String::from("path")),
     );
@@ -42,17 +44,17 @@ You can define your own handlers by using associated function ParsableValueArgum
 ``` Rust
 let handler = |input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
                        _values: &mut Vec<i64>| {
-            if let Some(v) = input_iter.next() {
+            if let Option::Some(v) = input_iter.next() {
                 let validation = ParsableValueArgument::validate_integer(v);
-                if let Some(err) = validation {
+                if let Option::Some(err) = validation {
                     return Result::Err(err);
                 }
                 match v.parse() {
-                    Ok(v) => Result::Ok(v),
-                    Err(err) => Result::Err(format!("{}", err)),
+                    Result::Ok(v) => Result::Ok(v),
+                    Result::Err(err) => Result::Err(format!("{}", err)),
                 }
             } else {
-                Err(String::from("No remaining input values."))
+                Result::Err(String::from("No remaining input values."))
             }
         };
         ParsableValueArgument::new(identification, handler)
