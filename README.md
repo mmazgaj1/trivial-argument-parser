@@ -1,4 +1,4 @@
-[![Current Crates.io Version](https://img.shields.io/crates/v/crates.svg)](https://crates.io/crates/trivial-argument-parser)
+[![crates.io](https://img.shields.io/crates/v/trivial_argument_parser.svg)](https://crates.io/crates/trivial-argument-parser)
 
 # trivial-argument-parser
 This crate was created as a part of a small private project. It started as a small library with the purpose of being a testing ground for the author. Since then nothing really changed because no valuable improvements were introduced. Recently I came back to this crate with introduction of version 0.3.0 where changes drastically shifted how it will be developed. Hopefully I will spend more time on this project so it won't look like an abandoned pile of mess.
