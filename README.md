@@ -8,7 +8,10 @@ Simple argument parser written in Rust. It provides simple way of defining and p
 ```rust
 use trivial_argument_parser::{
     args_to_string_vector,
-    argument::{parsable_argument::ParsableValueArgument, ArgumentIdentification},
+    argument::{
+        parsable_argument::ParsableValueArgument,
+        ArgumentIdentification
+        },
     ArgumentList,
 };
 
@@ -39,18 +42,21 @@ cargo run -- -n 131 --path abc
 
 ## Defining own argument handlers
 
-You can define your own handlers by using associated function ParsableValueArgument::new. You need to specify how argument will handle values by going over input iterator (it can take one or more values by calling next() or it can be used to set a flag). Input iterator is peekable and can be used for more complex control. Example of defined argument handler - predefined integer argument handler:
+You can define your own handlers by using associated function ParsableValueArgument::new. You need to specify how argument will handle values by going over input iterator (it can take one or more values by calling next() or it can be used to set a flag). Input iterator is peekable and can be used for more complex control. If value of argument has to be saved, then handler must use values vector provided as mutable borrow (handler can decide if multiple values can be saved). Example of defined argument handler - predefined integer argument handler:
 
 ``` Rust
 let handler = |input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
-                       _values: &mut Vec<i64>| {
+                       values: &mut Vec<i64>| {
             if let Option::Some(v) = input_iter.next() {
                 let validation = ParsableValueArgument::validate_integer(v);
                 if let Option::Some(err) = validation {
                     return Result::Err(err);
                 }
                 match v.parse() {
-                    Result::Ok(v) => Result::Ok(v),
+                    Result::Ok(v) => {
+                        values.push(v);
+                        Ok(())
+                    }
                     Result::Err(err) => Result::Err(format!("{}", err)),
                 }
             } else {

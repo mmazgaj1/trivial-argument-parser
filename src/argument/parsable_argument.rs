@@ -10,7 +10,7 @@ use std::iter::Peekable;
 pub struct ParsableValueArgument<V> {
     identification: ArgumentIdentification,
     handler: Box<
-        dyn Fn(&mut Peekable<&mut std::slice::Iter<'_, String>>, &mut Vec<V>) -> Result<V, String>,
+        dyn Fn(&mut Peekable<&mut std::slice::Iter<'_, String>>, &mut Vec<V>) -> Result<(), String>,
     >,
     values: Vec<V>,
 }
@@ -33,7 +33,7 @@ pub trait HandleableArgument<'a> {
 impl<V> ParsableValueArgument<V> {
     pub fn new<C>(identification: ArgumentIdentification, handler: C) -> ParsableValueArgument<V>
     where
-        C: Fn(&mut Peekable<&mut std::slice::Iter<'_, String>>, &mut Vec<V>) -> Result<V, String>
+        C: Fn(&mut Peekable<&mut std::slice::Iter<'_, String>>, &mut Vec<V>) -> Result<(), String>
             + 'static,
     {
         ParsableValueArgument::<V> {
@@ -72,14 +72,17 @@ impl ParsableValueArgument<i64> {
      */
     pub fn new_integer(identification: ArgumentIdentification) -> ParsableValueArgument<i64> {
         let handler = |input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
-                       _values: &mut Vec<i64>| {
+                       values: &mut Vec<i64>| {
             if let Option::Some(v) = input_iter.next() {
                 let validation = ParsableValueArgument::validate_integer(v);
                 if let Option::Some(err) = validation {
                     return Result::Err(err);
                 }
                 match v.parse() {
-                    Result::Ok(v) => Result::Ok(v),
+                    Result::Ok(v) => {
+                        values.push(v);
+                        Ok(())
+                    }
                     Result::Err(err) => Result::Err(format!("{}", err)),
                 }
             } else {
@@ -96,9 +99,10 @@ impl ParsableValueArgument<String> {
      */
     pub fn new_string(identification: ArgumentIdentification) -> ParsableValueArgument<String> {
         let handler = |input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
-                       _values: &mut Vec<String>| {
+                       values: &mut Vec<String>| {
             if let Some(v) = input_iter.next() {
-                Result::Ok(String::from(v))
+                values.push(String::from(v));
+                Result::Ok(())
             } else {
                 Result::Err(String::from("No remaining input values."))
             }
@@ -112,8 +116,7 @@ impl<'a, V> HandleableArgument<'a> for ParsableValueArgument<V> {
         &mut self,
         input_iter: &mut Peekable<&mut std::slice::Iter<'_, String>>,
     ) -> Result<(), String> {
-        let result = (self.handler)(input_iter, &mut self.values)?;
-        self.values.push(result);
+        (self.handler)(input_iter, &mut self.values)?;
         Result::Ok(())
     }
 
@@ -140,7 +143,7 @@ mod test {
     fn new_parsable_value_argument_works() {
         let _arg =
             ParsableValueArgument::<i64>::new(super::ArgumentIdentification::Short('x'), |_, _| {
-                Result::Ok(2)
+                Result::Ok(())
             });
     }
 
@@ -148,7 +151,7 @@ mod test {
     fn is_by_short_works() {
         let arg =
             ParsableValueArgument::<i64>::new(super::ArgumentIdentification::Short('x'), |_, _| {
-                Result::Ok(2)
+                Result::Ok(())
             });
         assert!(arg.is_by_short('x'));
         assert!(!arg.is_by_short('c'));
@@ -158,7 +161,7 @@ mod test {
     fn is_by_long_works() {
         let arg = ParsableValueArgument::<i64>::new(
             super::ArgumentIdentification::Long(String::from("path")),
-            |_, _| Result::Ok(2),
+            |_, _| Result::Ok(()),
         );
         assert!(arg.is_by_long("path"));
         assert!(!arg.is_by_long("directory"));
